@@ -57,4 +57,5 @@ def post_settings():
 def get_sensor():
     return {'state': check_sensor()}
 
-app.run()
+if __name__ == '__main__':
+    app.run()
