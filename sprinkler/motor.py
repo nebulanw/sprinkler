@@ -3,6 +3,7 @@ import RPi.GPIO as GPIO
 class Motor:
     def __init__(self, relay_pin: int = 27):
         self.RELAY_PIN = 27
+        self.setup()
 
     def setup(self):
         GPIO.setmode(GPIO.BCM)

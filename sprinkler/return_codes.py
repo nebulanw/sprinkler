@@ -5,3 +5,4 @@ class WateringReturnCodes(Enum):
     OK_SENSOR_BYPASS = 1
     EXIT_WEATHER = 2
     EXIT_SENSOR = 3
+    MANUAL = 4

@@ -1,7 +1,13 @@
-from sprinkler.weather import Weather
+import RPi.GPIO as GPIO
+import time
 
-weather = Weather(47.6418, -122.0804, "America/Los_Angeles")
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(16, GPIO.IN)
 
-resp = weather.query()
-print(resp.current_precipitation)
-print(resp.total_precipitation)
+try:
+    while True:
+        print(GPIO.input(16))
+        time.sleep(0.1)
+except KeyboardInterrupt:
+    GPIO.cleanup()
+

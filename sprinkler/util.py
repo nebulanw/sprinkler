@@ -2,22 +2,10 @@ from sprinkler.motor import Motor
 from sprinkler.sensor import Sensor
 from sprinkler.weather import Weather
 from sprinkler.return_codes import WateringReturnCodes
-from sprinkler.db import Database
+from sprinkler.db import db_log, db_metrics, db_config
 import time
 
-# TODO: replace constants with config
-MOTOR_PIN = 27
-SENSOR_PIN = 17
-LATITUDE = 47.6418
-LONGITUDE = -122.0804
-TIMEZONE = "America/Los_Angeles"
-PRECIPITATION_THRESHOLD = 0.5
-SENSOR_DAY_LIMIT = 5
-WATERING_TIME = 300
-
-db = Database("sprinkler.json")
-
-initial_configs = db.get_config()
+initial_configs = db_config.get_config()
 
 motor = Motor(initial_configs['motor_pin'])
 sensor = Sensor(initial_configs['sensor_pin'])
@@ -27,11 +15,26 @@ weather = Weather(
     initial_configs['timezone']
 )
 
+def water(code):
+    """Runs the pump for one irrigation cycle if it's not already running."""
+
+    if db_log.get_watering() == True:
+        return False
+    db_log.update_watering(True)
+    motor.start()
+    time.sleep(db_config.get_config()['watering_time'])
+    motor.stop()
+    db_log.update_watering(False)
+    db_log.log_watering(code.value)
+    return True
+
+def manual_water():
+    water(WateringReturnCodes.MANUAL)
+
 def check_water(sensor_ok_days: int) -> tuple[bool, WateringReturnCodes]:
     """Checks watering criteria. Returns `True, <sprinkler.return_codes.WaterReturnCodes>` if passed."""
     forecast = weather.query()
-    cfg = db.get_config()
-    print(forecast.total_precipitation)
+    cfg = db_config.get_config()
     if (forecast.current_precipitation >= cfg['precipitation_threshold']):
          #or forecast.total_precipitation >= cfg['precipitation_threshold']):
         # if percipitation >= 0.5 mm, do not water
@@ -46,16 +49,13 @@ def check_water(sensor_ok_days: int) -> tuple[bool, WateringReturnCodes]:
 
 def scheduled_water():
     """Scheduled watering task."""
-    metrics = db.get_metrics()
-    cfg = db.get_config()
+    metrics = db_metrics.get_metrics()
     should_water, code = check_water(metrics['days_since_sensor_humid'])
-    db.log_watering(code.value)
-    print(f"{should_water} {code}")
+
     if should_water:
-        motor.start()
-        # this feels like bad practice...
-        time.sleep(cfg['watering_time'])
-        motor.stop()
+        water(code)
+    else:
+        db_log.log_watering(code.value)
     if code in [
         WateringReturnCodes.EXIT_WEATHER,
         WateringReturnCodes.OK_SENSOR_BYPASS,
@@ -64,10 +64,11 @@ def scheduled_water():
         metrics['days_since_sensor_humid'] = 0
     else:
         metrics['days_since_sensor_humid'] += 1
-    print(f"Days set to {metrics['days_since_sensor_humid']}")
-    db.update_metrics(metrics)
-    print(db.get_logs())
 
-while True:
-    input("Press Enter for next day")
-    scheduled_water()
+    db_metrics.update_metrics(metrics)
+
+def stop_motor():
+    motor.stop()
+
+def check_sensor():
+    return sensor.query()

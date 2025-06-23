@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sprinkler Controller Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #status { font-size: 1.2em; margin-bottom: 10px; }
+    #logs { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; margin-bottom: 10px; }
+    #logs p { margin: 5px 0; }
+    #controls { margin-bottom: 20px; display: flex; align-items: center; }
+    #controls input { margin-right: 5px; }
+    #controls button { margin-left: 10px; padding: 5px 10px; }
+    #settings input { display: block; margin: 5px 0 10px 0; width: 200px; }
+    #settings label { margin-top: 10px; display: block; }
+    button { padding: 10px 15px; }
+  </style>
+</head>
+<body>
+  <h1>Sprinkler Controller Dashboard</h1>
+  <div id="status">Loading status...</div>
+  <button id="waterNowBtn">Water Now</button>
+  <h2>Logs</h2>
+  <div id="logs">Loading logs...</div>
+  <div id="controls">
+    <input type="checkbox" id="autoRefresh" checked>
+    <label for="autoRefresh">Auto-refresh</label>
+    <button id="refreshBtn">Refresh</button>
+  </div>
+  <h2>Settings</h2>
+  <form id="settingsForm">
+    <p>Most of these don't actually take effect until the server is restarted. Only <code>precipitation_threshold</code>, <code>sensor_day_limit</code>, and <code>watering_time</code> are instantly applied...</p>
+    <div id="settings"></div>
+    <button type="submit">Save Settings</button>
+  </form>
+  <script>
+    const codeMap = {
+      0: 'automatic watering',
+      1: 'automatic watering with sensor bypassed',
+      2: 'no watering occurred due to weather',
+      3: 'no watering occurred due to sensor',
+      4: 'watering manually triggered'
+    };
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        document.getElementById('status').textContent = 'Irrigation is ' + (data.watering ? 'ON' : 'OFF');
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error loading status';
+      }
+    }
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/api/logs');
+        const logs = await res.json();
+        const logsDiv = document.getElementById('logs');
+        logsDiv.innerHTML = '';
+        logs.forEach(entry => {
+          const date = new Date(entry.date);
+          const p = document.createElement('p');
+          p.textContent = date.toLocaleString() + ' - ' + (codeMap[entry.code] || 'unknown');
+          logsDiv.appendChild(p);
+        });
+      } catch (err) {
+        document.getElementById('logs').textContent = 'Error loading logs';
+      }
+    }
+
+    document.getElementById('waterNowBtn').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/water_now');
+        const data = await res.json();
+        alert(data.success ? 'Manual watering started' : 'Irrigation was already running');
+        fetchStatus();
+        fetchLogs();
+      } catch (err) {
+        alert('Error triggering watering');
+      }
+    });
+
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const settings = await res.json();
+        const settingsDiv = document.getElementById('settings');
+        settingsDiv.innerHTML = '';
+        for (const key in settings) {
+          const label = document.createElement('label');
+          label.textContent = key;
+          const input = document.createElement('input');
+          input.name = key;
+          input.value = settings[key];
+          settingsDiv.appendChild(label);
+          settingsDiv.appendChild(input);
+        }
+      } catch (err) {
+        document.getElementById('settings').textContent = 'Error loading settings';
+      }
+    }
+
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const body = {};
+      formData.forEach((value, key) => {
+        body[key] = isNaN(value) ? value : Number(value);
+      });
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        alert(res.ok ? 'Settings saved' : 'Error saving settings');
+      } catch (err) {
+        alert('Error saving settings');
+      }
+    });
+
+    // Initial load
+    fetchStatus();
+    fetchLogs();
+    loadSettings();
+
+    // Auto-refresh handler
+    setInterval(() => {
+      const auto = document.getElementById('autoRefresh').checked;
+      if (auto) {
+        fetchStatus();
+        fetchLogs();
+      }
+    }, 5000);
+
+    // Manual refresh button
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      fetchStatus();
+      fetchLogs();
+    });
+  </script>
+</body>
+</html>
