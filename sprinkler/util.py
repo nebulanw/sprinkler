@@ -26,6 +26,9 @@ def water(code):
     motor.stop()
     db_log.update_watering(False)
     db_log.log_watering(code.value)
+    metrics = db_metrics.get_metrics()
+    metrics['watered_yesterday'] = True
+    db_metrics.update_metrics(metrics)
     return True
 
 def manual_water():
@@ -33,10 +36,15 @@ def manual_water():
 
 def check_water(sensor_ok_days: int) -> tuple[bool, WateringReturnCodes]:
     """Checks watering criteria. Returns `True, <sprinkler.return_codes.WaterReturnCodes>` if passed."""
+    metrics = db_metrics.get_metrics()
+    if metrics['watered_yesterday'] == True:
+        metrics['watered_yesterday'] = False
+        db_metrics.update_metrics(metrics)
+        return False, WateringReturnCodes.EXIT_CONSEC
     forecast = weather.query()
     cfg = db_config.get_config()
-    if (forecast.current_precipitation >= cfg['precipitation_threshold']):
-         #or forecast.total_precipitation >= cfg['precipitation_threshold']):
+    if (forecast.current_precipitation >= cfg['precipitation_threshold']
+         or forecast.total_precipitation >= cfg['precipitation_threshold']):
         # if percipitation >= 0.5 mm, do not water
         return False, WateringReturnCodes.EXIT_WEATHER
     if sensor.query() == False:
@@ -56,8 +64,10 @@ def scheduled_water():
         water(code)
     else:
         db_log.log_watering(code.value)
+    metrics = db_metrics.get_metrics()
     if code in [
         WateringReturnCodes.EXIT_WEATHER,
+        WateringReturnCodes.EXIT_CONSEC,
         WateringReturnCodes.OK_SENSOR_BYPASS,
         WateringReturnCodes.OK
     ]:

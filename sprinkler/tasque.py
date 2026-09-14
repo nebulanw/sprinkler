@@ -15,7 +15,7 @@ class Tasks:
         )
         self.scheduler.start()
 
-        self.scheduler.add_job(util.scheduled_water, test_trigger, id="util.scheduled_water", max_instances=1)
+        self.scheduler.add_job(util.scheduled_water, daily_trigger, id="util.scheduled_water", max_instances=1)
 
     def shutdown(self):
         self.scheduler.remove_all_jobs()

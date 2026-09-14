@@ -6,3 +6,4 @@ class WateringReturnCodes(Enum):
     EXIT_WEATHER = 2
     EXIT_SENSOR = 3
     MANUAL = 4
+    EXIT_CONSEC = 5

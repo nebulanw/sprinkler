@@ -12,7 +12,8 @@ class Database:
         if self.db.all() == []:
             self.db.insert({
                 'metrics': {
-                    'days_since_sensor_humid': DAYS_SINCE_SENSOR_HUMID
+                    'days_since_sensor_humid': DAYS_SINCE_SENSOR_HUMID,
+                    'watered_yesterday': False
                 }
             })
 

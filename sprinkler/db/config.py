@@ -8,7 +8,7 @@ LONGITUDE = -122.0084
 TIMEZONE = "America/Los_Angeles"
 PRECIPITATION_THRESHOLD = 0.5
 SENSOR_DAY_LIMIT = 4
-WATERING_TIME = 5
+WATERING_TIME = 30
 
 class Database:
     def __init__(self, db_file: str):
